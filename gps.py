@@ -1,10 +1,11 @@
-import serial
 import time
+
+import serial
 
 from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 
 ser = serial.Serial(
-    '/dev/ttyS0',
+    '/dev/ttyUSB0',
     115200,
     bytesize=EIGHTBITS,
     parity=PARITY_NONE,
@@ -19,27 +20,43 @@ ser = serial.Serial(
 )
 
 commands = [
-    'AT+CLTS=1'
+    'AT+CGNSPWR=1',
+    'AT+CGNSSEQ="GGA"',
+    'AT+CGNSINF'
 ]
+
+okResponse = b'OK\r\n'
+errorResponse = b'ERROR\r\n'
+
+commandIndex = 0
+timeSleep = 1
+lastResponse = ''
+data = []
 
 try:
     while True:
-        command = 'b' + commands[0] + '\r\n'
+        command = 'b' + commands[commandIndex] + '\r\n'
 
         ser.write(command.encode())
-        ser.flushInput()
 
-        data = ser.read_until()
+        while lastResponse != okResponse and lastResponse != errorResponse:
+            lastResponse = ser.read_until()
+            data.append(lastResponse.decode())
 
-        print(data)
+            print(lastResponse)
 
-        # print(ser.inWaiting())
+        if lastResponse == errorResponse:
+            break
 
-        # print ser.inWaiting()
-        # while ser.inWaiting() > 0:
-        #     data += ser.read(ser.inWaiting()).decode()
-        # if data != "":
-        #     print(data)
+        print('')
+
+        if commandIndex < len(commands) - 1:
+            commandIndex = commandIndex + 1
+
+        lastResponse = ''
+        data = []
+
+        time.sleep(timeSleep)
 except KeyboardInterrupt:
-    if ser != None:
+    if ser is not None:
         ser.close()
