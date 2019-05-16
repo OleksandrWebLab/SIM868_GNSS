@@ -1,22 +1,11 @@
 import time
-
 import serial
 
 from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 
 ser = serial.Serial(
     '/dev/ttyUSB0',
-    115200,
-    bytesize=EIGHTBITS,
-    parity=PARITY_NONE,
-    stopbits=STOPBITS_ONE,
-    timeout=None,
-    xonxoff=False,
-    rtscts=False,
-    write_timeout=None,
-    dsrdtr=False,
-    inter_byte_timeout=None,
-    exclusive=None
+    115200
 )
 
 commands = [
@@ -25,8 +14,32 @@ commands = [
     'AT+CGNSINF'
 ]
 
-okResponse = b'OK\r\n'
-errorResponse = b'ERROR\r\n'
+dataFormat = [
+    'GPS run status',
+    'Fix status',
+    'UTC date & Time',
+    'Latitude',
+    'Longitude',
+    'MSL Altitude',
+    'Speed Over Ground',
+    'Course Over Ground',
+    'Fix Mode',
+    'Reserved1',
+    'HDOP',
+    'PDOP',
+    'VDOP',
+    'Reserved2',
+    'GPS Satellites in View',
+    'GNSS Satellites Used',
+    'GLONASS Satellites in View',
+    'Reserved3',
+    'C/N0 max',
+    'HPA',
+    'VPA',
+]
+
+okResponse = 'OK'
+errorResponse = 'ERROR'
 
 commandIndex = 0
 timeSleep = 1
@@ -35,20 +48,30 @@ data = []
 
 try:
     while True:
-        command = 'b' + commands[commandIndex] + '\r\n'
+        command = commands[commandIndex]
+        preparedCommand = command + '\r\n'
 
-        ser.write(command.encode())
+        ser.write(preparedCommand.encode())
 
         while lastResponse != okResponse and lastResponse != errorResponse:
-            lastResponse = ser.read_until()
-            data.append(lastResponse.decode())
+            lastResponse = ser.read_until().decode()
+            lastResponse = lastResponse.replace('\r', '')
+            lastResponse = lastResponse.replace('\n', '')
 
-            print(lastResponse)
+            if lastResponse != "":
+                # print(lastResponse)
+                data.append(lastResponse)
 
         if lastResponse == errorResponse:
             break
 
-        print('')
+        # print(data)
+
+        if command == 'AT+CGNSINF':
+            data = data[1].split(':')
+            data = data[1].strip(' ').split(',')
+            data = dict(zip(dataFormat, data))
+            print(data)
 
         if commandIndex < len(commands) - 1:
             commandIndex = commandIndex + 1
